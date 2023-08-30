@@ -1,0 +1,91 @@
+--@name objs lib
+--@author Elias
+
+objs=class("objs")
+
+if SERVER then
+    waitList={}
+    
+    function queue(time,func,data)
+        if !waitList[time] then
+            waitList[time]={}
+            local list=waitList[time]
+                
+            func()
+                
+            timer.create("waitList_"..time,time,0,function()
+                if list[#waitList[time]] then
+                    list[#waitList[time]]()
+                    waitList[time][#waitList[time]]=nil
+                else
+                    timer.remove("waitList_"..time)
+                    waitList[time]=nil
+                end
+            end)
+        else
+            table.insert(waitList[time],1,func)
+        end
+    end
+
+    function objs:initialize(objArray,data,scale)
+        self.objArray=objArray
+        self.data=data
+        self.scale=scale
+        self.objEnts={}
+        
+        for i=1,#self.objArray do
+            queue(1/5,function()
+                http.get(self.objArray[i],function(objdata)
+                    local name=string.split(self.objArray[i],"/")
+                    self.data[i].name=string.split(name[#name],".obj")[1]
+                    
+                    --printConsole(table.toString({mesh.parseObj(objdata,nil,true)}))
+                    print(self.data[i].name)
+                    
+                    local data={mesh.parseObj(objdata,nil,true)}
+                    local p=data[2].positions
+                    printConsole(table.toString(data[1]))
+                    local v=data[1][self.data[i].name]
+                    
+                    local convexes={}
+                    local vertices={}
+                    
+                    for ii=1,#p do
+                        convexes[ii]=Vector(p[ii][1],p[ii][2],p[ii][3])*3
+                    end
+                    
+                     for ii=1,#v do
+                        vertices[ii]=v[ii]
+                        vertices[ii].pos=Vector(v[ii].pos[1],v[ii].pos[2],v[ii].pos[3])*3
+                        vertices[ii].normal=Vector(v[ii].normal[1],v[ii].normal[2],v[ii].normal[3])
+                    end
+                    
+                    self.objEnts[i]=prop.createCustom(chip():getPos() + chip():getUp() * 20, Angle(), {convexes}, true)
+                    
+                    hook.add("think","awaiting_obj"..i,function()
+                        if self.objEnts[i] then
+                            net.start("objs_mat")
+                            net.writeEntity(self.objEnts[i])
+                            net.writeTable(vertices)
+                            net.send()
+                            
+                            hook.remove("think","awaiting_obj"..i)
+                        end
+                    end)
+                end)
+            end)
+        end
+        
+        return self
+    end
+else
+    net.receive("objs_mat",function()
+        local ent=net.readEntity()        
+        local ent_mesh = mesh.createFromTable(net.readTable())
+        local ent_material = material.create("VertexLitGeneric")
+        ent_material:setTexture("$basetexture","hunter/myplastic")
+         
+        ent:setMesh(ent_mesh)
+        ent:setMeshMaterial(ent_material)
+    end)
+end
