@@ -34,33 +34,33 @@ if SERVER then
         self.objEnts={}
         
         for i=1,#self.objArray do
-            queue(1/5,function()
-                http.get(self.objArray[i],function(objdata)
+            queue(1/3,function()
+                http.get(string.replace(self.objArray[i],"https://www.dropbox.com/","https://dl.dropboxusercontent.com/"),function(objdata)
+                    if !self.data[i] then
+                        self.data[i]={}
+                    end
+                    
                     local name=string.split(self.objArray[i],"/")
                     self.data[i].name=string.split(name[#name],".obj")[1]
                     
-                    --printConsole(table.toString({mesh.parseObj(objdata,nil,true)}))
-                    print(self.data[i].name)
-                    
                     local data={mesh.parseObj(objdata,nil,true)}
                     local p=data[2].positions
-                    printConsole(table.toString(data[1]))
                     local v=data[1][self.data[i].name]
-                    
+
                     local convexes={}
                     local vertices={}
                     
                     for ii=1,#p do
-                        convexes[ii]=Vector(p[ii][1],p[ii][2],p[ii][3])*3
+                        convexes[ii]=Vector(p[ii][1],p[ii][2],p[ii][3])*self.scale
                     end
                     
                      for ii=1,#v do
                         vertices[ii]=v[ii]
-                        vertices[ii].pos=Vector(v[ii].pos[1],v[ii].pos[2],v[ii].pos[3])*3
+                        vertices[ii].pos=Vector(v[ii].pos[1],v[ii].pos[2],v[ii].pos[3])*self.scale
                         vertices[ii].normal=Vector(v[ii].normal[1],v[ii].normal[2],v[ii].normal[3])
                     end
                     
-                    self.objEnts[i]=prop.createCustom(chip():getPos() + chip():getUp() * 20, Angle(), {convexes}, true)
+                    self.objEnts[i]=prop.createCustom(chip():getPos()+(self.data[i].pos*self.scale or Vector()), (self.data[i].ang or Angle())+Angle(0,0,90), {convexes}, true)
                     
                     hook.add("think","awaiting_obj"..i,function()
                         if self.objEnts[i] then
@@ -80,12 +80,15 @@ if SERVER then
     end
 else
     net.receive("objs_mat",function()
-        local ent=net.readEntity()        
-        local ent_mesh = mesh.createFromTable(net.readTable())
+        local ent=net.readEntity()  
+        local packet=net.readTable()
+        local ent_mesh = mesh.createFromTable(packet)
         local ent_material = material.create("VertexLitGeneric")
         ent_material:setTexture("$basetexture","hunter/myplastic")
-         
-        ent:setMesh(ent_mesh)
-        ent:setMeshMaterial(ent_material)
+
+        if ent:isValid() and ent:getClass()=="starfall_prop" then --:getClass()
+            ent:setMesh(ent_mesh)
+            ent:setMeshMaterial(ent_material)
+        end
     end)
 end
