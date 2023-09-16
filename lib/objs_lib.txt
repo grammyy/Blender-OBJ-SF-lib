@@ -4,15 +4,16 @@
 objs=class("objs")
 
 if SERVER then
+    local objEnts={}
     waitList={}
-    
+
     function queue(time,func,data)
         if !waitList[time] then
             waitList[time]={}
             local list=waitList[time]
-                
+                    
             func()
-                
+                    
             timer.create("waitList_"..time,time,0,function()
                 if list[#waitList[time]] then
                     list[#waitList[time]]()
@@ -26,12 +27,11 @@ if SERVER then
             table.insert(waitList[time],1,func)
         end
     end
-
+    
     function objs:initialize(objArray,data,scale)
         self.objArray=objArray
         self.data=data
         self.scale=scale
-        self.objEnts={}
         
         for i=1,#self.objArray do
             queue(1/3,function()
@@ -60,35 +60,72 @@ if SERVER then
                         vertices[ii].normal=Vector(v[ii].normal[1],v[ii].normal[2],v[ii].normal[3])
                     end
                     
-                    self.objEnts[i]=prop.createCustom(chip():getPos()+(self.data[i].pos*self.scale or Vector()), (self.data[i].ang or Angle())+Angle(0,0,90), {convexes}, true)
-                    
-                    hook.add("think","awaiting_obj"..i,function()
-                        if self.objEnts[i] then
-                            net.start("objs_mat")
-                            net.writeEntity(self.objEnts[i])
-                            net.writeTable(vertices)
-                            net.send()
-                            
-                            hook.remove("think","awaiting_obj"..i)
-                        end
-                    end)
+                    local ent=prop.createCustom(chip():getPos()+(self.data[i].pos*self.scale or Vector()), (self.data[i].ang or Angle())+Angle(0,0,90), {convexes}, true)
+                    objEnts[ent:entIndex()]=ent
+                    objEnts[ent:entIndex()].vertices=vertices
                 end)
             end)
         end
         
         return self
     end
+    
+    net.receive("sv_request",function(_,ply)
+        local packet=net.readInt(16)
+        
+        if !objEnts[packet] then
+            return
+        end
+        
+        queue(1/5,function()
+            net.start("cl_deliver")
+            net.writeInt(packet,16)
+            net.writeTable(objEnts[packet].vertices)
+            net.send()
+        end)
+    end)
 else
-    net.receive("objs_mat",function()
-        local ent=net.readEntity()  
-        local packet=net.readTable()
-        local ent_mesh = mesh.createFromTable(packet)
-        local ent_material = material.create("VertexLitGeneric")
-        ent_material:setTexture("$basetexture","hunter/myplastic")
-
-        if ent:isValid() and ent:getClass()=="starfall_prop" then --:getClass()
+    local cache={}
+    
+    net.receive("cl_deliver",function()
+        local packet={net.readInt(16),net.readTable()}
+        local ent=entity(packet[1])
+        local ent_mesh = mesh.createFromTable(packet[2])
+        
+        if cache[packet[1]]=="loading" then
+            cache[packet[1]] = material.create("VertexLitGeneric")
+            cache[packet[1]]:setTexture("$basetexture","hunter/myplastic")
+        end
+          
+        try(function()      
             ent:setMesh(ent_mesh)
-            ent:setMeshMaterial(ent_material)
+            ent:setMeshMaterial(cache[packet[1]])
+        end)
+    end)
+    
+    hook.add("think","objs_mats",function()
+        local objs=find.byClass("starfall_prop")
+        
+        for i,obj in pairs(objs) do
+            try(function()
+                if !cache[obj:entIndex()] and obj:getOwner()==owner() then
+                    printConsole(obj:entIndex())
+                    
+                    cache[obj:entIndex()]="loading"
+                    
+                    net.start("sv_request")
+                    net.writeInt(obj:entIndex(),16)
+                    net.send()
+                    
+                    timer.simple(1,function()
+                        try(function()
+                            if cache[obj:entIndex()]=="loading" then
+                                cache[obj:entIndex()]=nil
+                            end
+                        end)
+                    end)
+                end
+            end)
         end
     end)
 end
