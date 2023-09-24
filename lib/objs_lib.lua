@@ -1,4 +1,4 @@
---@name objs lib
+--@name OBJs lib
 --@author Elias
 
 objs=class("objs")
@@ -45,7 +45,7 @@ if SERVER then
                     
                     local data={mesh.parseObj(objdata,nil,true)}
                     local p=data[2].positions
-                    local v=data[1][self.data[i].name]
+                    local v=data[1][self.data[i].name] or data[1]
 
                     local convexes={}
                     local vertices={}
@@ -54,13 +54,13 @@ if SERVER then
                         convexes[ii]=Vector(p[ii][1],p[ii][2],p[ii][3])*self.scale
                     end
                     
-                     for ii=1,#v do
+                    for ii=1,#v do
                         vertices[ii]=v[ii]
                         vertices[ii].pos=Vector(v[ii].pos[1],v[ii].pos[2],v[ii].pos[3])*self.scale
-                        vertices[ii].normal=Vector(v[ii].normal[1],v[ii].normal[2],v[ii].normal[3])
+                        vertices[ii].normal=Vector(v[ii].normal[1],v[ii].normal[2],v[ii].normal[3])*self.scale
                     end
                     
-                    local ent=prop.createCustom(chip():getPos()+(self.data[i].pos*self.scale or Vector()), (self.data[i].ang or Angle())+Angle(0,0,90), {convexes}, true)
+                    local ent=prop.createCustom(chip():getPos()+(self.data[i].pos and self.data[i].pos*self.scale or Vector()), (self.data[i].ang or Angle())+Angle(0,0,90), {convexes}, true)
                     objEnts[ent:entIndex()]=ent
                     objEnts[ent:entIndex()].vertices=vertices
                 end)
@@ -85,22 +85,21 @@ if SERVER then
         end)
     end)
 else
-    local cache={}
+    cache={}
     
     net.receive("cl_deliver",function()
         local packet={net.readInt(16),net.readTable()}
         local ent=entity(packet[1])
-        local ent_mesh = mesh.createFromTable(packet[2])
         
         if cache[packet[1]]=="loading" then
-            cache[packet[1]] = material.create("VertexLitGeneric")
-            cache[packet[1]]:setTexture("$basetexture","hunter/myplastic")
-        end
-          
-        try(function()      
-            ent:setMesh(ent_mesh)
-            ent:setMeshMaterial(cache[packet[1]])
-        end)
+            cache[packet[1]]={}
+            cache[packet[1]].mat = material.create("VertexLitGeneric")
+            cache[packet[1]].mat:setTexture("$basetexture","hunter/myplastic")
+            cache[packet[1]].mesh=packet[2]
+            
+            ent:setMesh(mesh.createFromTable(cache[packet[1]].mesh))
+            ent:setMeshMaterial(cache[packet[1]].mat)
+        end          
     end)
     
     hook.add("think","objs_mats",function()
@@ -109,21 +108,13 @@ else
         for i,obj in pairs(objs) do
             try(function()
                 if !cache[obj:entIndex()] and obj:getOwner()==owner() then
-                    printConsole(obj:entIndex())
+                    printConsole("Loading OBJ: "..obj:entIndex())
                     
                     cache[obj:entIndex()]="loading"
                     
                     net.start("sv_request")
                     net.writeInt(obj:entIndex(),16)
                     net.send()
-                    
-                    timer.simple(1,function()
-                        try(function()
-                            if cache[obj:entIndex()]=="loading" then
-                                cache[obj:entIndex()]=nil
-                            end
-                        end)
-                    end)
                 end
             end)
         end
