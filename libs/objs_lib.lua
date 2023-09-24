@@ -63,6 +63,7 @@ if SERVER then
                     local ent=prop.createCustom(chip():getPos()+(self.data[i].pos and self.data[i].pos*self.scale or Vector()), (self.data[i].ang or Angle())+Angle(0,0,90), {convexes}, true)
                     objEnts[ent:entIndex()]=ent
                     objEnts[ent:entIndex()].vertices=vertices
+                    objEnts[ent:entIndex()].texture=self.data[i].texture
                 end)
             end)
         end
@@ -81,6 +82,7 @@ if SERVER then
             net.start("cl_deliver")
             net.writeInt(packet,16)
             net.writeTable(objEnts[packet].vertices)
+            net.writeString(objEnts[packet].texture)
             net.send()
         end)
     end)
@@ -88,13 +90,13 @@ else
     cache={}
     
     net.receive("cl_deliver",function()
-        local packet={net.readInt(16),net.readTable()}
+        local packet={net.readInt(16),net.readTable(),net.readString()}
         local ent=entity(packet[1])
         
         if cache[packet[1]]=="loading" then
             cache[packet[1]]={}
             cache[packet[1]].mat = material.create("VertexLitGeneric")
-            cache[packet[1]].mat:setTexture("$basetexture","hunter/myplastic")
+            cache[packet[1]].mat:setTexture("$basetexture",packet[3] or "hunter/myplastic")
             cache[packet[1]].mesh=packet[2]
             
             ent:setMesh(mesh.createFromTable(cache[packet[1]].mesh))

@@ -1,4 +1,4 @@
---@name Vertex shader demo
+--@name Meat vertex test
 --@author Elias
 --@include libs/objs_lib.lua
 
@@ -6,8 +6,12 @@ require("libs/objs_lib.lua")
 
 if SERVER then
     local test=objs:new({
-        "https://www.dropbox.com/scl/fi/tb7gwumffuain0ecxhsb9/bottom_armor_plate.obj?rlkey=xxxun3h8ze0wp6wbxmajjvz2t&dl=0"
-    },{},3)
+        "https://www.dropbox.com/scl/fi/vql1p7y0xjxoips5ydupz/Cube.obj?rlkey=2y6vmxln1zm55014f32fqj3qh&dl=0"
+    },{
+        {
+            texture="models/flesh"
+        }
+    },10)
 else
     hook.add("think","test",function()
         for id,ent in pairs(cache) do
@@ -18,7 +22,7 @@ else
             local shader=table.copy(ent.mesh)
             
             for i,data in pairs(shader) do
-                shader[i].pos=Vector(shader[i].pos[1]+math.sin(timer.realtime()*5+i*5),(shader[i].pos[2]*10)+math.sin(timer.realtime()*5+i*5),shader[i].pos[3]+math.sin(timer.realtime()*5+i*5))
+                shader[i].pos=Vector(shader[i].pos[1],(shader[i].pos[2]),shader[i].pos[3])*Vector(math.clamp(0.5+math.sin(shader[i].pos[2]*2+timer.realtime()*3)/2,0.5,1.5))+Vector(math.sin(shader[i].pos[2]*3+timer.realtime()*2))
                 shader[i].normal=Vector(shader[i].normal[1],shader[i].normal[2],shader[i].normal[3])
             end
             
