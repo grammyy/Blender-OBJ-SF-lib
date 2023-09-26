@@ -13,17 +13,16 @@ if SERVER then
         }
     },10)
 else
-    hook.add("think","test",function()
+    hook.add("think","",function()
         for id,ent in pairs(cache) do
-            if ent=="loading" then 
+            if ent=="loading" then
                 return 
             end
             
             local shader=table.copy(ent.mesh)
             
             for i,data in pairs(shader) do
-                shader[i].pos=Vector(shader[i].pos[1],(shader[i].pos[2]),shader[i].pos[3])*Vector(math.clamp(0.5+math.sin(shader[i].pos[2]*2+timer.realtime()*3)/2,0.5,1.5))+Vector(math.sin(shader[i].pos[2]*3+timer.realtime()*2))
-                shader[i].normal=Vector(shader[i].normal[1],shader[i].normal[2],shader[i].normal[3])
+                shader[i].pos=Vector(shader[i].pos[1],shader[i].pos[2],shader[i].pos[3])*Vector(math.clamp(0.5+math.sin(shader[i].pos[2]*2+timer.realtime()*3)/2,0.5,1.5))+Vector(math.sin(shader[i].pos[2]*3+timer.realtime()*2))
             end
             
             if memory then

@@ -14,22 +14,24 @@ if SERVER then
         "https://www.dropbox.com/scl/fi/p5r3qixy3shva52o8cmvw/right_armor_plate.obj?rlkey=jhfa89b14qbi9lvmpm5qqzqrx&dl=0",
     },{
         {
-            ["pos"]=Vector(8.1,0,7.65)
+            pos=Vector(8.1,0,7.65)
         },
         {
-            ["pos"]=Vector(8.1,0,-7.65)
+            pos=Vector(8.1,0,-7.65)
         },
         {
-            ["pos"]=Vector(15.75,0,-4.05)
+            pos=Vector(15.75,0,-4.05)
         },
         {
-            ["pos"]=Vector(15.75,0,4.05)
+            pos=Vector(15.75,0,4.05)
         },
         {
-            ["pos"]=Vector(8.1,5.15,0)
+            pos=Vector(8.1,5.15,0)
         },
         {
-            ["pos"]=Vector(8.1,-5.15,0)
+            pos=Vector(8.1,-5.15,0)
         }
-    },2)
+    },2,{
+        parent=chip()
+    })
 end
