@@ -51,74 +51,130 @@ if SERVER then
             
             suspend=true
             
-            timer.simple(1,function()
+            timer.simple(2,function()
                 network(ply,packet)
             end)
         end
     end
     
-    function objs:initialize(objArray,data,scale,ArrayData)
-        self.objArray=objArray
-        self.data=data
-        self.scale=scale
+    function objs:initialize(objs)
+        self.parts={}
+        self.status="loading"
         
-        for i=1,#self.objArray do
+        for link,obj in pairs(objs) do
+            if isnumber(link) then
+                link=obj
+            end
+            
             queue(1/3,function()
-                http.get(string.replace(self.objArray[i],"https://www.dropbox.com/","https://dl.dropboxusercontent.com/"),function(objdata)
-                    local obj=self.data[i]
+                http.get(string.replace(link,"https://www.dropbox.com/","https://dl.dropboxusercontent.com/"),function(data)      
+                    local data={mesh.parseObj(data,nil,true)}    
+                    local objKeys=table.getKeys(objs)
+                    local partKeys=table.getKeys(data[1])
                     
-                    if !obj then
-                        self.data[i]={}
-                    end
-                    
-                    local name=string.split(self.objArray[i],"/")
-                    self.data[i].name=string.split(name[#name],".obj")[1]
-                    
-                    local data={mesh.parseObj(objdata,nil,true)}
-                    local p=data[2].positions
-                    local v=data[1][obj.name] or data[1]
+                    for part,partData in pairs(data[1]) do
+                        local vertexes={}
+                        
+                        if type(obj)!="string" then
+                            if !objs[link][part] then
+                                objs[link][part]={}
+                            end
+                            
+                            for i,vertex in pairs(data[2].positions) do
+                                vertexes[i]=vertex*Vector(objs[link][part].scale or 1)
+                            end
+                            
+                            if objs[link][part].scale then
+                                for i,vertex in pairs(partData) do
+                                    vertex.pos=vertex.pos*objs[link][part].scale
+                                end
+                            end
 
-                    local convexes={}
-                    local vertices={}
-                    
-                    for ii=1,#p do
-                        convexes[ii]=Vector(p[ii][1],p[ii][2],p[ii][3])*self.scale
+                            table.add(self.parts,{[part]={
+                                physMaterial=objs[link].physMaterial or objs[link][part].physMaterial,
+                                texture=objs[link].texture or objs[link][part].texture,
+                                parent=objs[link].parent or objs[link][part].parent,
+                                color=objs[link].color or objs[link][part].color,
+                                mass=objs[link].mass or objs[link][part].mass,
+                                pos=objs[link].pos or objs[link][part].pos,
+                                ang=objs[link].ang or objs[link][part].ang,
+                                vertexes=vertexes,
+                                data=partData
+                            }})
+                        else
+                            table.add(self.parts,{[part]={
+                                vertexes=data[2].positions,
+                                data=partData
+                            }})
+                        end
+                        
+                        if partData==data[1][partKeys[#partKeys]] and obj==objs[objKeys[#objKeys]] then
+                            self.status="done"
+                        end
                     end
                     
-                    for ii=1,#v do
-                        vertices[ii]=v[ii]
-                        vertices[ii].pos=Vector(v[ii].pos[1],v[ii].pos[2],v[ii].pos[3])*self.scale
-                        vertices[ii].normal=Vector(v[ii].normal[1],v[ii].normal[2],v[ii].normal[3])
-                    end
-                    
-                    local ent=prop.createCustom(chip():getPos()+(obj.pos and obj.pos*self.scale or Vector()), (obj.ang or Angle())+Angle(0,0,90), {convexes}, true)
-                    objEnts[ent:entIndex()]=ent
-                    objEnts[ent:entIndex()].vertices=vertices
-                    objEnts[ent:entIndex()].texture=obj.texture or "hunter/myplastic"
-                    local index=objEnts[ent:entIndex()]
-                    
-                    ent:setColor((ArrayData and ArrayData.color) and ArrayData.color or (obj.color or Color(255,255,255)))
-
-                    if obj.physMaterial then
-                        ent:setPhysMaterial(obj.physMaterial)
-                    end
-                    
-                    if obj.mass then
-                        ent:setMass(obj.mass)
-                    end
-                    
-                    if !ArrayData then
-                        return
-                    end
-                    
-                    if ArrayData.parent then
-                        ent:setParent(ArrayData.parent)
-                    end
+                    return self
                 end)
             end)
         end
+    end
+    
+    function objs:spawn(global)
+        if self.status=="loading" then
+            hook.add("think","awaiting_obj"..table.address(self),function()
+                if self.status!="loading" then
+                    self:spawn(global)
+                    
+                    hook.remove("think","awaiting_obj"..table.address(self))
+                end
+            end)
+            
+            return
+        end
+
+        if !global then
+            global={}
+        end
+
+        for part,data in pairs(self.parts) do
+            local vertexes=table.copy(data.vertexes)
+            local partData=table.copy(data.data)
+            
+            if global.scale then
+                for i,vertex in pairs(data.vertexes) do
+                    vertexes[i]=vertex*global.scale
+                end
+                
+                for i,vertex in pairs(data.data) do
+                    partData[i].pos=vertex.pos*global.scale
+                end
+            end
         
-        return self
+            queue(1/3,function()
+                local ent=prop.createCustom(chip():getPos()+(data.pos and (data.pos*(global.scale or 1)) or Vector()),(ang or Angle())+Angle(0,0,90),{vertexes},true)
+                objEnts[ent:entIndex()]=ent
+                objEnts[ent:entIndex()].vertices=partData
+                objEnts[ent:entIndex()].texture=(global.texture or data.texture) or "hunter/myplastic"
+                
+                if global.physMaterial or data.physMaterial then
+                    ent:setPhysMaterial(global.physMaterial or data.physMaterial)
+                end
+                
+                if global.parent or data.parent then
+                    ent:setParent(global.parent or data.parent)
+                end
+                
+                if global.color or data.color then
+                    ent:setColor(global.color or data.color)
+                end
+                
+                if global.mass or data.mass then
+                    ent:setMass(global.mass or data.mass)
+                end
+            end)
+        end
+        
+        return ent
     end
     
     net.receive("sv_request",function(_,ply)

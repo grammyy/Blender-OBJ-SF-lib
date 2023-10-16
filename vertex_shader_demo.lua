@@ -6,33 +6,39 @@ require("libs/objs_lib.lua")
 
 if SERVER then
     local test=objs:new({
-        "https://www.dropbox.com/scl/fi/vql1p7y0xjxoips5ydupz/Cube.obj?rlkey=2y6vmxln1zm55014f32fqj3qh&dl=0"
-    },{
-        {
+        ["https://www.dropbox.com/scl/fi/2zkfoqjzpc7g2urdkkzhs/Cube.obj?rlkey=3ims8uw1fotvwh2vnthld35vd&dl=0"]={
             texture="models/flesh"
         }
-    },10)
+    }):spawn({
+        scale=10
+    })
 else
+    local memeory={}
+    
     hook.add("think","",function()
         for id,ent in pairs(cache) do
-            if ent=="loading" then
+            if ent=="loading" or quotaAverage()>quotaMax()*0.7 then
                 return 
             end
             
             local shader=table.copy(ent.mesh)
             
             for i,data in pairs(shader) do
-                shader[i].pos=Vector(shader[i].pos[1],shader[i].pos[2],shader[i].pos[3])*Vector(math.clamp(0.5+math.sin(shader[i].pos[2]*2+timer.realtime()*3)/2,0.5,1.5))+Vector(math.sin(shader[i].pos[2]*3+timer.realtime()*2))
+                shader[i].pos=shader[i].pos*Vector(math.clamp(0.5+math.sin(shader[i].pos[2]*2+timer.realtime()*3)/2,0.5,1.5))+Vector(math.sin(shader[i].pos[2]*3+timer.realtime()*2))
             end
             
-            if memory then
-                memory:destroy()
+            if memeory[id] and memeory[id].mem then
+                memeory[id].mem:destroy()
             end
             
-            mesh_=mesh.createFromTable(shader)
-            memory=mesh_
+            memeory[id]={
+                mesh=mesh.createFromTable(shader)
+            }
+            memeory[id].mem=memeory[id].mesh
             
-            entity(id):setMesh(mesh_)
+            try(function()
+                entity(id):setMesh(memeory[id].mesh)
+            end)
         end
     end)
 end
