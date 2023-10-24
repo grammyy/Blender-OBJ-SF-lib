@@ -194,7 +194,8 @@ if SERVER then
     end)
 else
     cache={}
-    version={"beta_1","https://raw.githubusercontent.com/Elias-bff/Blender-OBJ-SF-lib/main/version"}
+    version="beta_1"
+    repo="https://raw.githubusercontent.com/Elias-bff/Blender-OBJ-SF-lib/main/version"
     
     http.get("https://raw.githubusercontent.com/Elias-bff/SF-linker/main/linker.lua",function(data)
         loadstring(data)()
