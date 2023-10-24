@@ -31,6 +31,10 @@ if SERVER then
     end
     
     function network(ply,packet) --add counter so if it refuses too much it ignores the data
+        if !ply:isValid() then
+            return
+        end
+        
         if !suspend and net.getBytesLeft()>0 then
             net.start("cl_deliver")
             net.writeInt(packet,16)
@@ -151,7 +155,7 @@ if SERVER then
             end
         
             queue(1/3,function()
-                local ent=prop.createCustom(chip():getPos()+(data.pos and (data.pos*(global.scale or 1)) or Vector()),(ang or Angle())+Angle(0,0,90),{vertexes},true)
+                local ent=prop.createCustom(((global.pos or Vector())+(data.pos and (data.pos*(global.scale or 1)) or Vector())),(ang or Angle())+Angle(0,0,90),{vertexes},true)
                 objEnts[ent:entIndex()]=ent
                 objEnts[ent:entIndex()].vertices=partData
                 objEnts[ent:entIndex()].texture=(global.texture or data.texture) or "hunter/myplastic"
@@ -190,6 +194,15 @@ if SERVER then
     end)
 else
     cache={}
+    version={"beta_1","https://raw.githubusercontent.com/Elias-bff/Blender-OBJ-SF-lib/main/version"}
+    
+    http.get("https://raw.githubusercontent.com/Elias-bff/SF-linker/main/linker.lua",function(data)
+        loadstring(data)()
+        
+        load({
+            "https://raw.githubusercontent.com/Elias-bff/SF-linker/main/builds/version%20changelog.lua"
+        })
+    end)
     
     net.receive("cl_deliver",function()
         local packet={net.readInt(16),net.readTable(),net.readString()}
