@@ -195,13 +195,13 @@ if SERVER then
 else
     cache={}
     version="beta_1"
-    repo="https://raw.githubusercontent.com/Elias-bff/Blender-OBJ-SF-lib/main/version"
+    repo="https://raw.githubusercontent.com/grammyy/Blender-OBJ-SF-lib/main/version"
     
-    http.get("https://raw.githubusercontent.com/Elias-bff/SF-linker/main/linker.lua",function(data)
+    http.get("https://raw.githubusercontent.com/grammyy/SF-linker/main/linker.lua",function(data)
         loadstring(data)()
         
         load({
-            "https://raw.githubusercontent.com/Elias-bff/SF-linker/main/public%20libs/version%20changelog.lua"
+            "https://raw.githubusercontent.com/grammyy/SF-linker/main/public%20libs/version%20changelog.lua"
         })
     end)
     
